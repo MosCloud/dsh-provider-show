@@ -69,8 +69,8 @@
 - 渲染位置在模型选择器**左侧**同一条 flex 行（CONV:19276-19280），正是「右下角信息区」。
 - 反例：`conversation.input.model.label` 是 `single` 槽，workbuddy 已用 `priority: -0.5` 占位，
   宿主 1017 徽标在 0 位被压制。我们再去注册会**抛错抢格**，且会把 third-party 的显示顶掉。
-- 代价（已知并接受）：会占用约 60–110px，使模型名更早折叠为图标（CONV:18871-18899）。
-  缓解：`max-width` + `text-overflow: ellipsis` + 只显示供应商短名。
+- 代价（已知并接受）：芯片宽度计入 `.trailing`，使模型名更早折叠为图标（CONV:18871-18899）。
+  缓解：`max-width: 140px` + `text-overflow: ellipsis` + `margin-inline-end: -10px`，只显示供应商名。
 
 ### ADR-2：供应商归属判定以 `settingsNs` 为主信号
 - `remote.llm.listConfigurableProviders()` 返回 `settingsNs`（= Loader entry id）。
@@ -96,13 +96,17 @@ L3 保守默认 = 我方显示（fail-open to "show provider"）
 `CORE_NAMESPACES` 默认 `["llm-pi-ai","llm-deepseek","llm-deepseek-account"]`，
 并通过 `cfg.coreNamespaces` 可扩展（宿主升级新增内置 provider 时无需改代码）。
 
-### ADR-4：Host 半是必需的，即使最终数据在客户端
-- 客户端动态插件对 `remote.llm` 的注入可达性**未验证**（`dsh-cordis-client-runner/lib/client.js:326-370` 的白名单代理）。
-- Host 半负责：读 `ctx.llm.listConfigurableProviders()` + `ctx.llm.listProviders()`，
-  归一成 `{ provider, displayName, ownedBy: 'core' | 'third-party', ownerNs }`，
-  通过 `ctx.webServer.register({ kind: 'exact' })` 暴露一个只读 GET 路由（同 workbuddy 的 `WORKBUDDY_USAGE_PATH` 范式）。
-- 客户端**优先直接读 `remote.llm`**，失败再退回自有路由；两者都失败 → L3。
-- Host 半同时承载 `Config`（覆盖表、短名映射、显示开关）。
+### ADR-4：Host 半是必需的，且客户端只做查表
+
+- 浏览器看不到 `settingsNs`：模型目录的 provider group 只有 `{ id, name, models }`，
+  `prepareRoutes` 在进入目录前就把适配器元数据裁掉了。**判定所需的原始事实只在 Host 侧存在。**
+- 因此 Host 半读 `ctx.llm.listConfigurableProviders()` + `ctx.llm.listProviders()`，
+  用共享的纯函数算出结论，通过 `ctx.webServer.register({ kind: 'exact' })`
+  暴露只读 GET `/plugins/dsh-provider-show/providers`（同 workbuddy 的 `WORKBUDDY_USAGE_PATH` 范式）。
+- 客户端**只读这条路由**，自身不含任何归属规则；拿不到文档就渲染空。
+  这样规则只有一份实现，不存在「浏览器一份、Host 一份」的漂移。
+- 路由注册必须由 `scope.effect(...)` 持有（插件返回值会被丢弃），且用
+  `ctx.inject(['webServer'], …)` 等服务就绪（一次性 `ctx.get` 会静默漏注册）。
 
 ### ADR-5：单例注册 + gate 内判空
 照 workbuddy 范式：**无条件注册 slot**，组件内部读 `useProjection('modelSelection')`，
@@ -302,3 +306,56 @@ title === row.moduleName ? null : <code>{row.moduleName}</code>
 
 这是宿主的展示行为，**不是本插件的缺陷**，也不建议为它把 id 改成短名（收益只是少一次重复字符串，代价是让用户多记一个标识）。
 WorkBuddy 之所以看不出重复，是因为它的 `meta.title` 直接用了包名本身。
+
+## 十一、渲染与排版细节
+
+> 从 README 移入。README 只保留使用者需要的信息，这些是修改代码前需要知道的事实。
+
+### 11.1 只显示供应商名，不重复模型与强度
+
+宿主已经画了模型名（经 `conversation.input.model.label` slot）与推理强度（`triggerEffort` span，非 slot）。
+芯片再画一次就是同一行出现两遍。所以芯片只补唯一缺失的那一项：**供应商**。
+
+### 11.2 排版度量必须与模型触发器完全一致
+
+| 约束 | 原因 |
+|---|---|
+| `font-size:13px` + `font-weight:400` + `line-height:20px` + `height:28px` + `align-items:center` | 与 `.htuFrW_trigger` 同一套度量 |
+| **不声明 `font-family`** | 两者继承同一个字体栈；自己声明会引入差异 |
+| `margin-inline-end:-10px`、自身 `padding:0` | 宿主 `.standardControls` 有 12px `gap`，模型触发器又有 8px 左内边距 |
+| **禁止 `translateY`** | 见 11.3 |
+
+行盒内基线位置是 `half-leading + ascent`，**由字号与字体决定、与 `line-height` 无关**。
+所以「度量相同 ⇒ 基线自动重合」，不需要 `align-items: baseline`（那是父容器的属性，我们也改不了）。
+
+### 11.3 中文补偿是一次错误结论（留档防复发）
+
+**曾经的错误判断**：汉字占满 em 框、无下伸部，因此在拉丁基线上偏高，必须加位移补偿。
+据此连续加过 `+2px` → `1px`。
+
+**错因**：当时芯片 12px、模型名 13px，字号不一致造成的基线差被误读成「字体脚本差异」。
+字号统一到 13px 后，从 2 倍截图量墨迹质心（1 CSS px = 2 图像 px）：
+
+| 文字块 | 墨迹行范围 | 质心 |
+|---|---|---|
+| `火山` | 19..43 | **33.12** |
+| `DeepSeek` | 19..42 | 29.80 |
+| `Flash` | 19..38 | 28.90 |
+| `×0.20` | 19..38 | 28.76 |
+| `High` | 19..42 | 30.02 |
+
+拉丁均值约 29.4。挂 `+2px` 时汉字质心 33.12（**低 1.85 CSS px**），去掉后落到 29.1（齐平）。
+**结论：同字号下最优补偿是 0**，整套补偿机制已删除。
+
+`scripts/verify.mjs` 有一条反向防护：客户端或样式表出现 `translateY(` 即判红。
+若将来确实需要补偿，必须先给出新的实测数据，不能凭观感改。
+
+### 11.4 层级靠颜色而不是字号
+
+宿主自己就这么做：模型名 `label-secondary`、推理强度 `label-caption`，**两者都是 13px**。
+供应商作为第三层用 `label-tertiary`、同为 13px，整行读作「供应商 · 模型 · 强度」一个视觉单位。
+
+### 11.5 已知的宿主展示行为
+
+插件详情页「包含的组件」对单行插件会重复打印标识符，行标题与描述也会与页面顶部重复。
+这是宿主行为而非本插件缺陷，机制与是否要改 id 的判断见[第十节](#十loader-行-id-与包名的关系改这里之前必读)。
