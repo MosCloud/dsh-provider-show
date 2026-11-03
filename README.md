@@ -126,11 +126,14 @@ lib/client.js         Client 半：注册 conversation.input.right，读宿主�
 |---|---|
 | `height:28px` + `line-height:20px` + `align-items:center` | 与模型触发器**完全相同的行盒**。只对齐中线不够：12px 字形在 18px 盒里、13px 字形在 20px 盒里，基线差约 0.2–1px，看起来就是「供应商文字偏上」。 |
 | `margin-inline-end:-10px`、自身 `padding:0` | 宿主 `.standardControls` 有 12px `gap`，模型触发器又有 8px 左内边距；不补偿则两标签相距约 20px，补偿后约 10px，读作一行。 |
-| `[data-cjk="true"] .dpsp-name{translateY(2px)}` | 中文方块字占满 em 框、没有下伸部，在拉丁基线上天然偏高。实测 12px 下墨迹中心：拉丁 `−3.0px`、中文 `−5.0px`，差约 2px。只对齐基线不够，还要对齐墨迹盒。 |
+| `[data-cjk="true"] .dpsp-name{translateY(1px)}` | 中文方块字占满 em 框、没有下伸部，在拉丁基线上天然偏高。只对齐基线不够，还要对齐墨迹盒。**1px 是实测校准值**，不是字模推导：`0px` 偏高、`2px` 偏低。 |
 
 > 为什么只有中文标签「看起来没居中」：`DeepSeek Account`、`opencode-go` 是纯拉丁，
-> 基线即视觉中心；`火山API` 的中文块比拉丁字母整体高约 2px。实测数据见
-> `lib/client.js` 里 `CJK` 常量的注释。
+> 基线即视觉中心；`火山API` 的中文块比拉丁字母整体偏高。字模代理测算给出 1.6–2.0px，
+> 但真机渲染 2px 偏低，故取 1px。
+>
+> **这是唯一一个靠肉眼校准的数字**，调法：改 `lib/client.js` 里那一处 `translateY(1px)`，
+> 再同步 `scripts/verify.mjs` 与 `test/client.test.mjs` 的 `0.5–2.5px` 区间。
 
 **2. 归属判定只在 Host 侧做一次**
 

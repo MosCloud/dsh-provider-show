@@ -264,7 +264,8 @@ test('the nudge is a sub-3px downward shift, not a re-layout', async () => {
   const shift = /translateY\(([\d.]+)px\)/.exec(rule[1])
   assert.notEqual(shift, null, 'the CJK rule does not shift the text')
   const px = Number(shift[1])
-  // The measured gap is 1.6–2.0px at 12px. Anything larger than 3px would
-  // overshoot the Latin ink box and read as "the Han label is low" instead.
-  assert.ok(px >= 1 && px <= 3, `the nudge must stay between 1px and 3px, got ${px}px`)
+  // Calibrated empirically on the desktop build: 0px reads high, 2px reads low,
+  // so the usable range is narrow. Anything outside it overshoots one way or the
+  // other and the label stops looking level with the Latin model name.
+  assert.ok(px >= 0.5 && px <= 2.5, `the nudge must stay between 0.5px and 2.5px, got ${px}px`)
 })
