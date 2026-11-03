@@ -194,3 +194,29 @@ test('the stylesheet is installed once and uses theme tokens', async () => {
   assert.ok(css.includes('var(--dsw-alias-'), 'the chip must colour itself with theme tokens')
   assert.ok(css.includes('max-width'), 'the chip must bound its width')
 })
+
+test('the chip copies the model trigger line box so the labels share a baseline', async () => {
+  const client = await loadClient()
+  await mount(client, 'huoshan')
+  const css = client.styles[0].textContent
+  // The model trigger is 28px tall with a 20px line box and centres its content.
+  // A chip that matches only the centre line still renders a fraction of a pixel
+  // high, because a 12px glyph in an 18px box sits differently from a 13px glyph
+  // in a 20px box. Copying the full box is what removes that.
+  assert.ok(css.includes('height:28px'), 'the chip must take the trigger height')
+  assert.ok(css.includes('line-height:20px'), 'the chip must take the trigger line box')
+  assert.ok(css.includes('align-items:center'), 'the chip must centre its text in that box')
+})
+
+test('the chip offsets the host row gap so the pair reads as one line', async () => {
+  const client = await loadClient()
+  await mount(client, 'huoshan')
+  const css = client.styles[0].textContent
+  // .standardControls spaces children 12px apart and the model trigger adds 8px
+  // of leading padding; without a negative margin the two labels sit ~20px apart.
+  const margin = /margin-inline-end:\s*(-\d+(?:\.\d+)?)px/.exec(css)
+  assert.notEqual(margin, null, 'the chip must pull itself toward the model trigger')
+  const shift = Math.abs(Number(margin[1]))
+  assert.ok(shift >= 6 && shift <= 12, `the offset must be between 6px and 12px, got ${shift}px`)
+  assert.ok(!css.includes('padding:0 2px'), 'the chip must not add its own horizontal padding')
+})

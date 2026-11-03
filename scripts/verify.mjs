@@ -189,6 +189,42 @@ check('the client stylesheet bounds its width', () => {
   assert(source.includes('text-overflow:ellipsis'), 'the chip does not ellipsise a long provider name')
 })
 
+/** The chip's `const CSS = [...]` block, joined the way the bundle joins it. */
+function chipCss() {
+  const source = text('lib/client.js')
+  const start = source.indexOf('const CSS = [')
+  const end = source.indexOf('].join', start)
+  assert(start !== -1 && end !== -1, 'the CSS block is not recognisable')
+  return [...source.slice(start, end).matchAll(/'((?:[^'\\]|\\.)*)'/g)].map((match) => match[1]).join('')
+}
+
+check('the chip copies the model trigger line box, so both labels share a baseline', () => {
+  const css = chipCss()
+  // The trigger (`ModelSelect.module.css`) is `height:28px`, `line-height:20px`,
+  // `align-items:center`. Matching only the centre line still leaves a sub-pixel
+  // offset, because a 12px glyph in an 18px box sits differently from a 13px
+  // glyph in a 20px box — which is exactly the "text looks high" symptom.
+  assert(css.includes('height:28px'), 'the chip does not take the trigger height')
+  assert(css.includes('line-height:20px'), 'the chip does not take the trigger line box')
+  assert(css.includes('align-items:center'), 'the chip does not centre its text')
+})
+
+check('the composed provider-to-model gap is tight', () => {
+  const css = chipCss()
+  // The arithmetic this plugin is compensating for, from the host stylesheets:
+  //   .standardControls { gap: 12px }        (ui-conversation InputBar.module.css)
+  //   .trigger          { padding-left: 8px } (ui-model-selection ModelSelect.module.css)
+  // so an unpadded chip sits ~20px from the model text. Our own padding must be
+  // zero and a negative margin must remove most of the host gap.
+  assert(!/padding:0 2px/.test(css), 'the chip adds its own horizontal padding on top of the host gap')
+  const margin = /margin-inline-end:\s*(-?\d+(?:\.\d+)?)px/.exec(css)
+  assert(margin !== null, 'the chip does not offset the host row gap')
+  const shift = Math.abs(Number(margin[1]))
+  assert(margin[1].startsWith('-'), 'the gap offset must be a negative margin')
+  const effective = 12 + 8 + 0 - shift
+  assert(effective >= 6 && effective <= 12, `the provider/model gap would be ${effective}px; keep it between 6 and 12px`)
+})
+
 // ---------------------------------------------------------------------------
 // Host half
 // ---------------------------------------------------------------------------

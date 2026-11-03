@@ -117,7 +117,15 @@ lib/client.js         Client 半：注册 conversation.input.right，读宿主�
 `.standardControls` 的子节点顺序即 `input.right` → `input.model`）。
 
 代价：芯片宽度计入 `.trailing`，会让模型名**更早**折叠成图标，
-所以芯片有 `max-width: 120px` 与省略号截断。
+所以芯片有 `max-width: 120px` 与省略号截断，并用 `margin-inline-end:-10px`
+抵消宿主的 12px 栅格间距。
+
+**视觉对齐的两条约束**（都由 `scripts/verify.mjs` 守住）：
+
+| 约束 | 原因 |
+|---|---|
+| `height:28px` + `line-height:20px` + `align-items:center` | 与模型触发器**完全相同的行盒**。只对齐中线不够：12px 字形在 18px 盒里、13px 字形在 20px 盒里，基线差约 0.2–1px，看起来就是「供应商文字偏上」。 |
+| `margin-inline-end:-10px`、自身 `padding:0` | 宿主 `.standardControls` 有 12px `gap`，模型触发器又有 8px 左内边距；不补偿则两标签相距约 20px，补偿后约 10px，读作一行。 |
 
 **2. 归属判定只在 Host 侧做一次**
 
