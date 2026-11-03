@@ -48,6 +48,31 @@ function stubContext({ rows, providers, withWebServer = true, throwing = false }
       if (name === 'webServer') return withWebServer ? webServer : undefined
       return undefined
     },
+    // cordis's `ctx.inject(deps, callback)` starts a CHILD PLUGIN and returns a
+    // fiber, not a disposer; the child's registrations are disposed with the
+    // child. The stub mirrors that: it runs the callback when the dependency is
+    // present, records the child's effects on a child scope, and exposes one
+    // `disposeChild` so a test can prove unload removes the route.
+    inject(names, callback) {
+      const missing = names.filter((name) => ctx.get(name) === undefined)
+      if (missing.length > 0) return { dispose() {} }
+      const childEffects = []
+      const scope = {
+        get: (name) => ctx.get(name),
+        effect: (fn) => {
+          const dispose = fn()
+          childEffects.push(dispose)
+          return () => dispose?.()
+        },
+      }
+      for (const name of names) scope[name] = ctx.get(name)
+      callback(scope)
+      return {
+        dispose() {
+          for (const dispose of childEffects) dispose?.()
+        },
+      }
+    },
     effect(fn) {
       const dispose = fn()
       return () => {
@@ -215,18 +240,23 @@ test('a composition without the web server simply registers nothing', () => {
 
 test('unloading removes the route', () => {
   const { ctx, routes } = stubContext({ rows: ROWS, providers: PROVIDERS })
-  const disposers = []
-  apply({
+  // The route is registered by the child plugin `ctx.inject` starts, so that
+  // child is what owns its disposal — exactly as in cordis. Disposing it must
+  // leave no listener behind. This test is the bundle's only guarantee that an
+  // uninstalled plugin stops answering on a path it no longer serves.
+  const captured = []
+  const tracking = {
     ...ctx,
-    effect(fn) {
-      const dispose = fn()
-      disposers.push(dispose)
-      return () => dispose?.()
+    inject(names, callback) {
+      const handle = ctx.inject(names, callback)
+      captured.push(handle)
+      return handle
     },
-  })
+  }
+  apply(tracking)
   assert.equal(routes.has(PATH), true)
-  assert.equal(disposers.length, 1, 'apply must own exactly one effect')
-  for (const dispose of disposers) dispose?.()
+  assert.equal(captured.length, 1, 'the plugin must start exactly one child for the route')
+  for (const handle of captured) handle.dispose?.()
   assert.equal(routes.has(PATH), false)
 })
 

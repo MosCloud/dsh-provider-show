@@ -202,7 +202,22 @@ check('the host half registers a read-only GET route under /plugins/', () => {
 
 check('the host half registers the route inside a disposer scope', () => {
   const source = text('lib/index.js')
-  assert(/ctx\.effect\(\(\) => \{[\s\S]{0,400}?webServer\.register\(/.test(source), 'the route is not owned by ctx.effect, so unload would leak it')
+  // A plugin's RETURN VALUE is discarded by the Loader; only an effect disposer
+  // runs on unload. Returning `webServer.register(...)` would register the route
+  // and then leak it forever, so the registration must sit inside an effect.
+  assert(
+    /scope\.effect\(\(\) => webServer\.register\(/.test(source),
+    'the route is not owned by scope.effect, so unload would leak it',
+  )
+  assert(
+    !/\n\s*return webServer\.register\(/.test(source),
+    'index.js returns the route disposer from the inject callback; the Loader discards it',
+  )
+})
+
+check('the host half waits for the web server instead of probing once', () => {
+  const source = text('lib/index.js')
+  assert(/ctx\.inject\(\['webServer'\]/.test(source), 'apply() does not await the webServer service')
 })
 
 check('the host half resolves its own config without importing a schema library', () => {

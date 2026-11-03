@@ -148,7 +148,8 @@ manifest 完整性、图标合法性与体积、locale 非占位文案、客户�
 ## 已知限制
 
 - 需要 Host 半的只读路由（`GET /plugins/dsh-provider-show/providers`）可用；
-  该路由仅接受本页同源请求。
+  该路由仅接受本页同源请求。该路径是 `/plugins/` 下的 **exact** 路由，
+  优先级高于 `/plugins` 前缀路由（webserver 先查 exact 表），因此不与客户端模块路由冲突。
 - 芯片会让模型名更早折叠为图标（见上文取舍 1）。
 - 当 `conversation.input.activity` 展开整行时，宿主会隐藏整组 `standardControls`，
   芯片随之隐藏 —— 这是宿主行为。
