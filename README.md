@@ -117,23 +117,33 @@ lib/client.js         Client 半：注册 conversation.input.right，读宿主�
 `.standardControls` 的子节点顺序即 `input.right` → `input.model`）。
 
 代价：芯片宽度计入 `.trailing`，会让模型名**更早**折叠成图标，
-所以芯片有 `max-width: 120px` 与省略号截断，并用 `margin-inline-end:-10px`
+所以芯片有 `max-width: 140px` 与省略号截断，并用 `margin-inline-end:-10px`
 抵消宿主的 12px 栅格间距。
 
-**视觉对齐的两条约束**（都由 `scripts/verify.mjs` 守住）：
+**排版对齐的三条约束**（都由 `scripts/verify.mjs` 守住）：
 
 | 约束 | 原因 |
 |---|---|
-| `height:28px` + `line-height:20px` + `align-items:center` | 与模型触发器**完全相同的行盒**。只对齐中线不够：12px 字形在 18px 盒里、13px 字形在 20px 盒里，基线差约 0.2–1px，看起来就是「供应商文字偏上」。 |
+| `font-size:13px` + `font-weight:400` + `line-height:20px` + `height:28px` + `align-items:center` | 与模型触发器 `.htuFrW_trigger` **完全同一套排版度量**，且**不声明 `font-family`**（两者都继承同一个字体栈）。字号与行盒一致时基线自动重合——基线位置是 `14 − (ascent+descent)/2 + ascent`，与 `line-height` 无关，所以行盒相同即基线相同。 |
 | `margin-inline-end:-10px`、自身 `padding:0` | 宿主 `.standardControls` 有 12px `gap`，模型触发器又有 8px 左内边距；不补偿则两标签相距约 20px，补偿后约 10px，读作一行。 |
-| `[data-cjk="true"] .dpsp-name{translateY(1px)}` | 中文方块字占满 em 框、没有下伸部，在拉丁基线上天然偏高。只对齐基线不够，还要对齐墨迹盒。**1px 是实测校准值**，不是字模推导：`0px` 偏高、`2px` 偏低。 |
+| 中文标签运行时实测位移（CSS 里 `translateY(1px)` 仅作兜底） | 汉字占满 em 框、几乎没有下伸部，而拉丁字母经 `p`/`g` 下探。**共享基线并不等于视觉对齐**——偏的是墨迹分布，不是基线。所以换字号救不了它，必须单独补偿。 |
 
-> 为什么只有中文标签「看起来没居中」：`DeepSeek Account`、`opencode-go` 是纯拉丁，
-> 基线即视觉中心；`火山API` 的中文块比拉丁字母整体偏高。字模代理测算给出 1.6–2.0px，
-> 但真机渲染 2px 偏低，故取 1px。
->
-> **这是唯一一个靠肉眼校准的数字**，调法：改 `lib/client.js` 里那一处 `translateY(1px)`，
-> 再同步 `scripts/verify.mjs` 与 `test/client.test.mjs` 的 `0.5–2.5px` 区间。
+### 为什么层级靠颜色而不是字号
+
+宿主自己就是这么做的：模型名是 `label-secondary`、推理强度是 `label-caption`，**两者都是 13px**，
+只靠颜色分层。供应商作为第三层，用 `label-tertiary`、同为 13px，于是整行读作
+「供应商 · 模型 · 强度」一个视觉单位，而不是三个不同字号拼起来的杂排。
+
+### 中文补偿为什么改成运行时实测
+
+汉字与拉丁的墨迹中心差约 `0.13em`，但这个值**依赖具体字体**：macOS 可能回退 PingFang 或
+Hiragino，Windows 是微软雅黑，Linux 各不相同。写死一个数字，换台机器就会重新偏掉。
+
+所以组件用 Canvas 的 `measureText` 读实际字体的 `actualBoundingBoxAscent/Descent`，
+把中文标签的墨迹中心对齐到拉丁样本 `Hp` 的墨迹中心，结果以 inline `transform` 应用：
+- 有 Canvas → 用实测值（自动跨平台/跨字体正确）；
+- 无 Canvas → 回落到 CSS 里的 `1px` 常量，绝不留下明显偏高；
+- 实测值被夹在 ±2px，避免异常度量把文字推出行外。
 
 **2. 归属判定只在 Host 侧做一次**
 

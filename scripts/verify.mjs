@@ -189,24 +189,45 @@ check('the client stylesheet bounds its width', () => {
   assert(source.includes('text-overflow:ellipsis'), 'the chip does not ellipsise a long provider name')
 })
 
-/** The chip's `const CSS = [...]` block, joined the way the bundle joins it. */
+/**
+ * The chip's `const CSS = [...]` block, joined the way the bundle joins it.
+ *
+ * Comments are stripped first. They legitimately quote CSS property text (for
+ * example explaining which size the trigger uses), and a naive string scan would
+ * let a COMMENT satisfy an assertion about the stylesheet — the check would pass
+ * while the rule was wrong.
+ */
 function chipCss() {
   const source = text('lib/client.js')
   const start = source.indexOf('const CSS = [')
   const end = source.indexOf('].join', start)
   assert(start !== -1 && end !== -1, 'the CSS block is not recognisable')
-  return [...source.slice(start, end).matchAll(/'((?:[^'\\]|\\.)*)'/g)].map((match) => match[1]).join('')
+  const withoutComments = source.slice(start, end).replace(/\/\/[^\n]*/g, '')
+  return [...withoutComments.matchAll(/'((?:[^'\\]|\\.)*)'/g)].map((match) => match[1]).join('')
 }
 
-check('the chip copies the model trigger line box, so both labels share a baseline', () => {
+check('the chip copies the model trigger typography and line box', () => {
   const css = chipCss()
-  // The trigger (`ModelSelect.module.css`) is `height:28px`, `line-height:20px`,
-  // `align-items:center`. Matching only the centre line still leaves a sub-pixel
-  // offset, because a 12px glyph in an 18px box sits differently from a 13px
-  // glyph in a 20px box — which is exactly the "text looks high" symptom.
+  // The trigger (`ModelSelect.module.css`) is 13px / weight 400 / line-height
+  // 20px / height 28px / align-items:center, and declares no font-family (it
+  // inherits). The chip reproduces all of it, so the two labels share one
+  // baseline and one type scale; matching only the centre line leaves a
+  // sub-pixel offset that reads as "the text sits high".
   assert(css.includes('height:28px'), 'the chip does not take the trigger height')
   assert(css.includes('line-height:20px'), 'the chip does not take the trigger line box')
   assert(css.includes('align-items:center'), 'the chip does not centre its text')
+  assert(css.includes('font-size:13px'), 'the chip invents a different type size than the trigger')
+  assert(css.includes('font-weight:400'), 'the chip invents a different weight than the trigger')
+  assert(!css.includes('font-family'), 'the chip must inherit the font family, not pick one')
+})
+
+check('the chip measures the Han offset instead of trusting a constant', () => {
+  const source = text('lib/client.js')
+  assert(/getContext\('2d'\)/.test(source), 'the client never creates a text-metrics context')
+  assert(source.includes('actualBoundingBoxAscent'), 'the measurement does not read the ink box')
+  assert(source.includes('actualBoundingBoxDescent'), 'the measurement does not read the ink box')
+  assert(/LATIN_REFERENCE\s*=\s*'\w+'/.test(source), 'no Latin reference sample is defined')
+  assert(/Math\.max\(-2,\s*Math\.min\(2,/.test(source), 'the measured offset is not clamped to ±2px')
 })
 
 check('a Han label takes the optical nudge, a Latin one does not', () => {
@@ -222,7 +243,7 @@ check('a Han label takes the optical nudge, a Latin one does not', () => {
   const shift = /translateY\(([\d.]+)px\)/.exec(rule[1])
   assert(shift !== null, 'the CJK rule does not shift the text')
   const px = Number(shift[1])
-  assert(px >= 0.5 && px <= 2.5, `the nudge must stay between 0.5px and 2.5px (empirically 1px), got ${px}px`)
+  assert(px >= 0.5 && px <= 2.5, `the FALLBACK nudge must stay between 0.5px and 2.5px, got ${px}px`)
 })
 
 check('the composed provider-to-model gap is tight', () => {

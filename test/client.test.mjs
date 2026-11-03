@@ -42,11 +42,26 @@ const DOCUMENT = {
  * @returns {Promise<{ opts: object, component: Function, styles: object[], reset: () => void, runEffects: () => void }>}
  *          the registered surface plus test controls.
  */
-async function loadClient({ document = DOCUMENT, fetchFails = false } = {}) {
+async function loadClient({ document = DOCUMENT, fetchFails = false, inkBoxes = null } = {}) {
   const styles = []
+  // A canvas stub whose `measureText` reports the ink box for a string. Passing
+  // `inkBoxes` opts a test into the measured-offset path; omitting it simulates a
+  // client without Canvas, which must fall back to the stylesheet constant.
+  const canvas = inkBoxes === null ? { getContext: () => null } : {
+    getContext: () => ({
+      font: '',
+      measureText(text) {
+        const box = inkBoxes(text)
+        return {
+          actualBoundingBoxAscent: box.ascent,
+          actualBoundingBoxDescent: box.descent,
+        }
+      },
+    }),
+  }
   globalThis.document = {
     querySelector: () => null,
-    createElement: () => ({ dataset: {}, textContent: '' }),
+    createElement: (tag) => (tag === 'canvas' ? canvas : { dataset: {}, textContent: '' }),
     head: { appendChild: (tag) => styles.push(tag) },
   }
   globalThis.window = { __ModuleLoader__: { load(registration) { globalThis.window.__registration = registration } } }
@@ -253,6 +268,44 @@ test('a Han label is marked for the optical nudge, a Latin one is not', async ()
 
   const fullwidth = await mount(client, 'short-name')
   assert.equal(fullwidth.props['data-cjk'], 'true', 'the short name is Han too')
+})
+
+test('a Han label is shifted by the MEASURED ink difference', async () => {
+  // Latin reference "Hp" spans [-9, +3] around the baseline; Han text spans
+  // [-11, +1]. Their ink centres are 2px apart, so the label must move down 2px.
+  const client = await loadClient({
+    inkBoxes: (text) => (text === 'Hp' ? { ascent: 9, descent: 3 } : { ascent: 11, descent: 1 }),
+  })
+  const han = await mount(client, 'volcano-han')
+  assert.equal(han.props['data-cjk'], 'true')
+  assert.equal(han.children[0].props.style.transform, 'translateY(2px)')
+})
+
+test('a Latin label is never shifted, even when a canvas is available', async () => {
+  const client = await loadClient({
+    inkBoxes: (text) => (text === 'Hp' ? { ascent: 9, descent: 3 } : { ascent: 11, descent: 1 }),
+  })
+  const latin = await mount(client, 'deepseek-official')
+  assert.equal(latin.props['data-cjk'], 'false')
+  assert.equal(latin.children[0].props.style, undefined, 'Latin labels keep the model baseline')
+})
+
+test('without Canvas the stylesheet fallback still applies', async () => {
+  const client = await loadClient({ inkBoxes: null })
+  const han = await mount(client, 'volcano-han')
+  // No inline transform: the `[data-cjk="true"]` rule carries the constant, so
+  // the label is still corrected rather than left visibly high.
+  assert.equal(han.props['data-cjk'], 'true')
+  assert.equal(han.children[0].props.style, undefined)
+})
+
+test('absurd measurements are clamped instead of moving the label off-row', async () => {
+  const client = await loadClient({
+    inkBoxes: (text) => (text === 'Hp' ? { ascent: 4, descent: 4 } : { ascent: 60, descent: 0 }),
+  })
+  const han = await mount(client, 'volcano-han')
+  const value = Number(/translateY\((-?[\d.]+)px\)/.exec(han.children[0].props.style.transform)[1])
+  assert.ok(Math.abs(value) <= 2, `the shift must stay within ±2px, got ${value}px`)
 })
 
 test('the nudge is a sub-3px downward shift, not a re-layout', async () => {
