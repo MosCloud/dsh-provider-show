@@ -160,5 +160,28 @@ manifest 完整性、图标合法性与体积、locale 非占位文案、客户�
 
 ## 状态
 
-已实现并通过静态与行为测试；**尚未在本机安装验收**（本次会话的审批策略禁止
-`plugin_manager` 动作）。验收步骤见 [task_plan.md](task_plan.md) 的「验收标准」一节。
+**已安装到 `desktop` profile，Host 半运行时验证通过。**
+
+| 项 | 结果 |
+|---|---|
+| 安装 | `dsh-provider-show 0.1.0` 已进入 profile bundles 与依赖（`link:` 指向本仓库） |
+| Host 行 | `fiberPhase: active` |
+| 只读路由 | `GET /plugins/dsh-provider-show/providers` 实测返回 200 与正确决策 |
+| 真实判定 | `huoshan` / `火山API` → 显示；`workbuddy` / `workbuddy-global` → 让位 |
+| 代码与测试 | 27 项测试 + 20 项静态校验全绿 |
+
+**尚未验证的部分**：芯片在浏览器 composer 里的实际渲染。本会话的无头环境无法取到
+带鉴权的页面（`GET /` 返回 `dsh web authentication required`），客户端模块图也需要
+同样的鉴权才能读取。
+
+### 请你验收（约 1 分钟）
+
+1. 刷新页面（插件是安装后新加的客户端模块，**必须刷新**才会加载）。
+2. 在输入框右下角看两件事：
+   - 选 **火山API** → 模型选择器左侧应出现 `火山API`；
+   - 选 **WorkBuddy** → 我方**不出现**任何东西（与图2 一致）。
+3. 若火山那一侧没出现芯片，把浏览器 Console 的前 20 行发我 —— 最可能的两种原因：
+   - 客户端模块未加载（刷新不彻底 / 需要重启 `dsh web`）；
+   - 插槽注册被 `slots` 服务时序挡住。
+
+卸载：插件管理页禁用该 bundle，或从 profile 依赖里移除 `dsh-provider-show`。
