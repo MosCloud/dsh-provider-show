@@ -24,6 +24,10 @@ const DOCUMENT = {
       { provider: 'workbuddy', displayName: 'WorkBuddy', label: 'WorkBuddy', visible: false, owner: 'third-party', reason: 'plugin-namespace' },
       // An override that renames the label.
       { provider: 'short-name', displayName: 'A Very Long Provider Name', label: '短名', visible: true, owner: 'core', reason: 'core-namespace' },
+      // A Han label next to Latin ones, which is where the baseline mismatch shows.
+      { provider: 'volcano-han', displayName: '火山API', label: '火山API', visible: true, owner: 'core', reason: 'core-namespace' },
+      // The Latin control case for the same check.
+      { provider: 'deepseek-official', displayName: 'DeepSeek Account', label: 'DeepSeek Account', visible: true, owner: 'core', reason: 'core-namespace' },
     ],
   },
 }
@@ -103,6 +107,18 @@ async function loadClient({ document = DOCUMENT, fetchFails = false } = {}) {
   return {
     ...registered,
     styles,
+    /**
+     * Begin a FRESH mount. A real React mount starts with empty state; the stub
+     * has to clear its cells explicitly, or a previous mount's loaded document
+     * leaks into the next one and the "must not render before the document
+     * arrives" assertion becomes meaningless.
+     */
+    startMount() {
+      cells.length = 0
+      cursor = 0
+      effectQueue.length = 0
+    },
+    /** Reset hook cursors between two renders of the SAME mount. */
     reset() {
       cursor = 0
       effectQueue.length = 0
@@ -130,7 +146,7 @@ async function mount(client, providerId) {
     sessionId: 'session-1',
     t,
   })
-  client.reset()
+  client.startMount()
   const first = client.component(props())
   assert.equal(first, null, 'nothing may render before the document arrives')
   client.runEffects()
@@ -167,7 +183,7 @@ test('a configured short name is what the chip shows', async () => {
 
 test('no selection renders nothing', async () => {
   const client = await loadClient()
-  client.reset()
+  client.startMount()
   const element = client.component({
     useProjection: () => ({ lastUsed: null, next: null }),
     sessionId: 'session-1',
@@ -219,4 +235,36 @@ test('the chip offsets the host row gap so the pair reads as one line', async ()
   const shift = Math.abs(Number(margin[1]))
   assert.ok(shift >= 6 && shift <= 12, `the offset must be between 6px and 12px, got ${shift}px`)
   assert.ok(!css.includes('padding:0 2px'), 'the chip must not add its own horizontal padding')
+})
+
+test('a Han label is marked for the optical nudge, a Latin one is not', async () => {
+  const client = await loadClient()
+  // Han ideographs fill the em box and sit high on a Latin baseline: measured
+  // ink centre is about 2px higher than Latin text at 12px, so a Han label
+  // beside the Latin model name looks off-centre unless it is nudged.
+  const han = await mount(client, 'volcano-han')
+  assert.equal(han.props['data-cjk'], 'true')
+
+  const huoshan = await mount(client, 'huoshan')
+  assert.equal(huoshan.props['data-cjk'], 'true', '火山API is Han, so it is nudged')
+
+  const latin = await mount(client, 'deepseek-official')
+  assert.equal(latin.props['data-cjk'], 'false', 'a Latin label must not be nudged')
+
+  const fullwidth = await mount(client, 'short-name')
+  assert.equal(fullwidth.props['data-cjk'], 'true', 'the short name is Han too')
+})
+
+test('the nudge is a sub-3px downward shift, not a re-layout', async () => {
+  const client = await loadClient()
+  await mount(client, 'volcano-han')
+  const css = client.styles[0].textContent
+  const rule = /\.dpsp-root\[data-cjk="true"\]\s*\.dpsp-name\{([^}]*)\}/.exec(css)
+  assert.notEqual(rule, null, 'the stylesheet has no CJK rule')
+  const shift = /translateY\(([\d.]+)px\)/.exec(rule[1])
+  assert.notEqual(shift, null, 'the CJK rule does not shift the text')
+  const px = Number(shift[1])
+  // The measured gap is 1.6–2.0px at 12px. Anything larger than 3px would
+  // overshoot the Latin ink box and read as "the Han label is low" instead.
+  assert.ok(px >= 1 && px <= 3, `the nudge must stay between 1px and 3px, got ${px}px`)
 })

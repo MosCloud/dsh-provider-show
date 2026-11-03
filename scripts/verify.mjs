@@ -209,6 +209,22 @@ check('the chip copies the model trigger line box, so both labels share a baseli
   assert(css.includes('align-items:center'), 'the chip does not centre its text')
 })
 
+check('a Han label takes the optical nudge, a Latin one does not', () => {
+  const source = text('lib/client.js')
+  const css = chipCss()
+  // Han/Kana/Hangul glyphs fill the em box and sit high on a Latin baseline
+  // (measured ink centre −5.0 vs −3.0 at 12px), so a Han label beside the Latin
+  // model name looks off-centre unless the stylesheet shifts it down.
+  assert(/const CJK = \/[^\n]+\//.test(source), 'the client does not detect CJK scripts')
+  assert(/data-cjk/.test(source), 'the rendered label carries no CJK marker')
+  const rule = /\.dpsp-root\[data-cjk="true"\]\s*\.dpsp-name\{([^}]*)\}/.exec(css)
+  assert(rule !== null, 'the stylesheet has no CJK rule')
+  const shift = /translateY\(([\d.]+)px\)/.exec(rule[1])
+  assert(shift !== null, 'the CJK rule does not shift the text')
+  const px = Number(shift[1])
+  assert(px >= 1 && px <= 3, `the nudge must stay between 1px and 3px (measured 1.6-2.0px), got ${px}px`)
+})
+
 check('the composed provider-to-model gap is tight', () => {
   const css = chipCss()
   // The arithmetic this plugin is compensating for, from the host stylesheets:

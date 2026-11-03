@@ -126,6 +126,11 @@ lib/client.js         Client 半：注册 conversation.input.right，读宿主�
 |---|---|
 | `height:28px` + `line-height:20px` + `align-items:center` | 与模型触发器**完全相同的行盒**。只对齐中线不够：12px 字形在 18px 盒里、13px 字形在 20px 盒里，基线差约 0.2–1px，看起来就是「供应商文字偏上」。 |
 | `margin-inline-end:-10px`、自身 `padding:0` | 宿主 `.standardControls` 有 12px `gap`，模型触发器又有 8px 左内边距；不补偿则两标签相距约 20px，补偿后约 10px，读作一行。 |
+| `[data-cjk="true"] .dpsp-name{translateY(2px)}` | 中文方块字占满 em 框、没有下伸部，在拉丁基线上天然偏高。实测 12px 下墨迹中心：拉丁 `−3.0px`、中文 `−5.0px`，差约 2px。只对齐基线不够，还要对齐墨迹盒。 |
+
+> 为什么只有中文标签「看起来没居中」：`DeepSeek Account`、`opencode-go` 是纯拉丁，
+> 基线即视觉中心；`火山API` 的中文块比拉丁字母整体高约 2px。实测数据见
+> `lib/client.js` 里 `CJK` 常量的注释。
 
 **2. 归属判定只在 Host 侧做一次**
 
