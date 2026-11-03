@@ -20,9 +20,18 @@ import { apply, describeProviders, effectiveConfig } from '../lib/index.js'
  * @param {unknown} [options.providers] - `listProviders()` reply.
  * @param {boolean} [options.withWebServer] - whether the server service exists.
  * @param {boolean} [options.throwing] - make the directory calls throw.
+ * @param {{ provider: string, model: string } | null} [options.defaultSelection] - `agentDefaultModel.currentSelection()` reply; OMIT to model a composition without the service.
+ * @param {boolean} [options.throwingDefault] - make the default-model read throw.
  * @returns {{ ctx: object, routes: Map<string, object>, disposed: () => boolean }} the stub.
  */
-function stubContext({ rows, providers, withWebServer = true, throwing = false } = {}) {
+function stubContext({
+  rows,
+  providers,
+  withWebServer = true,
+  throwing = false,
+  defaultSelection,
+  throwingDefault = false,
+} = {}) {
   const routes = new Map()
   let disposed = false
   const llm = {
@@ -35,6 +44,14 @@ function stubContext({ rows, providers, withWebServer = true, throwing = false }
       return providers
     },
   }
+  // Absent when the caller names no selection: a deployment may have no
+  // `agent-default-model` row at all, which the Host half must survive.
+  const agentDefaultModel = defaultSelection === undefined ? undefined : {
+    currentSelection() {
+      if (throwingDefault) throw new Error('default model exploded')
+      return defaultSelection
+    },
+  }
   const webServer = {
     register(route) {
       if (routes.has(route.path)) throw new Error(`duplicate route ${route.path}`)
@@ -45,6 +62,7 @@ function stubContext({ rows, providers, withWebServer = true, throwing = false }
   const ctx = {
     get(name) {
       if (name === 'llm') return llm
+      if (name === 'agentDefaultModel') return agentDefaultModel
       if (name === 'webServer') return withWebServer ? webServer : undefined
       return undefined
     },
@@ -125,6 +143,12 @@ const PROVIDERS = [
 ]
 
 const PATH = '/plugins/dsh-provider-show/providers'
+
+/**
+ * The deployment default on this machine, in the shape `agentDefaultModel`
+ * reports: the profile's `agent-default-model` row names this provider and model.
+ */
+const DEFAULT_SELECTION = { provider: 'volcano-api', model: 'deepseek-v4.1-flash' }
 
 test('the route is registered under the package namespace', () => {
   const { ctx, routes } = stubContext({ rows: ROWS, providers: PROVIDERS })
@@ -210,6 +234,52 @@ test('the GET route answers the document with the plugin switch included', async
   assert.equal(reply.body.ok, true)
   assert.equal(reply.body.value.enabled, true)
   assert.equal(reply.body.value.providers.length, 4)
+})
+
+test('the document publishes the deployment default the model seat falls back to', async () => {
+  const { ctx, routes } = stubContext({ rows: ROWS, providers: PROVIDERS, defaultSelection: DEFAULT_SELECTION })
+  apply(ctx)
+  const reply = await call(routes.get(PATH))
+  assert.equal(reply.body.ok, true)
+  // A brand-new Session has no `modelSelection` yet; without this value the
+  // client half would show no provider while the seat already shows a model.
+  assert.deepEqual(reply.body.value.default, DEFAULT_SELECTION)
+})
+
+test('a composition without a default-model service still answers, with no default', async () => {
+  const { ctx, routes } = stubContext({ rows: ROWS, providers: PROVIDERS })
+  apply(ctx)
+  const reply = await call(routes.get(PATH))
+  assert.equal(reply.status, 200)
+  assert.equal(reply.body.value.default, null)
+  assert.equal(reply.body.value.providers.length, 4, 'the directory must still be published')
+})
+
+test('a failing default-model read does not fail the route', async () => {
+  const { ctx, routes } = stubContext({
+    rows: ROWS,
+    providers: PROVIDERS,
+    defaultSelection: DEFAULT_SELECTION,
+    throwingDefault: true,
+  })
+  apply(ctx)
+  const reply = await call(routes.get(PATH))
+  assert.equal(reply.status, 200)
+  assert.equal(reply.body.ok, true)
+  assert.equal(reply.body.value.default, null, 'an unreadable default degrades to "draw nothing"')
+})
+
+test('an unusable default selection is dropped instead of published', () => {
+  const config = {
+    enabled: true,
+    shortNames: {},
+    overrides: {},
+    coreNamespaces: ['llm-pi-ai'],
+  }
+  for (const unusable of [null, { provider: '', model: 'm' }, { provider: 'p' }, { model: 'm' }, 'nonsense']) {
+    const { ctx } = stubContext({ rows: ROWS, providers: PROVIDERS, defaultSelection: unusable })
+    assert.equal(describeProviders(ctx, config).default, null, `published ${JSON.stringify(unusable)}`)
+  }
 })
 
 test('the route refuses methods and foreign pages', async () => {

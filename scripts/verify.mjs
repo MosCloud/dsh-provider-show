@@ -281,6 +281,32 @@ check('the host half waits for the web server instead of probing once', () => {
   assert(/ctx\.inject\(\['webServer'\]/.test(source), 'apply() does not await the webServer service')
 })
 
+check('the host half publishes the deployment default the seat falls back to', () => {
+  const source = text('lib/index.js')
+  // Which provider is in effect is `pending → last request header → deployment
+  // default`. The projection carries the first two; only the Host can read the
+  // third, so the document has to carry it or a brand-new Session shows nothing.
+  assert(source.includes("ctx.get('agentDefaultModel')"), 'index.js never reads the agentDefaultModel service')
+  assert(source.includes('currentSelection'), 'index.js never asks that service for its selection')
+  assert(/default:\s*readDefaultSelection\(ctx\)/.test(source), 'describeProviders does not publish the default')
+  assert(!source.includes("from '@deepseek-ai/dsh-agent-default-model'"), 'the service must be read through ctx, not imported')
+})
+
+check('the client half takes the default from the document, never from its own copy', () => {
+  // Comments are stripped first: the component DOCUMENTS which Host service the
+  // default comes from, and a naive scan would read that explanation as code.
+  const source = text('lib/client.js').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+  assert(
+    /selection\?\.next\?\.provider\s*\?\?\s*document\?\.default\?\.provider/.test(source),
+    'the client does not fall back to the document default, so a new Session shows no provider',
+  )
+  assert(
+    !/document\?\.default\?\.provider\s*\?\?\s*selection/.test(source),
+    'the default must not outrank an explicit selection',
+  )
+  assert(!source.includes('agentDefaultModel'), 'client.js reaches for a Host service it cannot see')
+})
+
 check('the host half resolves its own config without importing a schema library', () => {
   const source = text('lib/index.js')
   // A bundle installed by linking this directory resolves imports through the

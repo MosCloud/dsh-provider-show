@@ -110,11 +110,46 @@ L3 保守默认 = 我方显示（fail-open to "show provider"）
 
 ### ADR-5：单例注册 + gate 内判空
 照 workbuddy 范式：**无条件注册 slot**，组件内部读 `useProjection('modelSelection')`，
-判定为「第三方接管 / 无选中 / 目录未就绪」时 `return null`，且**不发起任何请求**。
+判定为「第三方接管 / 文档未就绪 / 没有可显示的 provider」时 `return null`。
+
+文档请求**无条件**发出：即使会话还没有任何选择（品牌新会话），渲染也需要文档里的 `default`
+（见 ADR-7）。请求自带 5 秒缓存，多个 composer 共用同一份。
 
 ### ADR-6：不读取、不操作别人的 DOM
 所有信息来自 Service（`remote.llm` / 自有路由 / `useProjection`）。
 ADR-3 的 `ctx.slots.entries()` 若用于「探测谁占了 label 槽」只作为**可选佐证**，不作为判定主依据。
+
+### ADR-7：`default` 这条腿只能由 Host 提供（v0.1.1）
+
+「现在生效的 provider」是一条三分支链，强度自上而下（与宿主 `selectionFor().current` 同构）：
+
+| 顺序 | 来源 | 浏览器能否看到 |
+|---|---|---|
+| 1 | `pending`：用户已选、尚未被请求消费 | ✅ 投影 `next` |
+| 2 | 最近一次 `request/header` | ✅ 投影 `lastUsed`（`next` 已含） |
+| 3 | `agentDefaultModel.currentSelection()` | ❌ **只有 Host** |
+
+`modelSelection` 投影的 `init` 是 `{ lastUsed: null, pending: null }`，所以**品牌新会话**（零事件）
+前两条都是空。而此时模型座位已经在显示默认模型了——`ui-model-selection` 里是
+`projected.next ?? catalog.value.default`，而 `buildModelCatalog` 的默认值正是
+`ctx.agentDefaultModel.currentSelection()`。只读投影的后果就是 v0.1.0 的 bug：
+新会话里座位有内容、芯片空白，必须切一次模型（或发一条消息让 `request/header` 落盘）才出现。
+
+修法：Host 把第 3 条腿以**值**的形式放进同一个文档（`default: { provider, model } | null`），
+客户端用 `selection?.next?.provider ?? document?.default?.provider` 接上。
+
+否决的两条路：
+- **客户端读 `modelDirectories`**（`ui-model-selection` 的内部服务）：未文档化，且要靠 `inject`
+  才能拿到，会把本插件在任何缺该服务的组合里 park 掉。
+- **客户端自己读设置/目录推出默认**：那是第二份规则，与本插件的单一权威前提冲突。
+
+边界与副作用：
+- 默认值与座位同源，芯片不可能和座位对不上；默认通道若被第三方插件接管，仍按 `visible` 让位。
+- `agentDefaultModel` 缺失、或读取抛错、或返回形状非法 → `default: null`，退回旧行为（不显示），
+  不连累路由。
+- 路由快照 5 秒：在设置里改默认模型后，空会话的芯片最多滞后 5 秒。
+- 对应测试：Host 4 项（发布默认 / 服务缺失 / 读取抛错 / 形状非法），客户端 6 项
+  （空投影显示默认、显式选择优先、`lastUsed` 优先、三方默认让位、无默认不渲染、默认指向目录外的 provider 不渲染）。
 
 ## 四、边界与约束
 
@@ -174,7 +209,7 @@ GET /plugins/dsh-provider-show/providers
 | **AC-3** | 切换供应商时芯片实时跟随，无闪烁、无报错（Console 无 `slot entry crashed`） | 手动连切 3 次 | 你 |
 | **AC-4** | 窗口拉窄至模型名折叠为图标时，芯片仍可用且不撑破布局 | 窄窗截图 | 你 |
 | **AC-5** | 第三方接管检测的三种形态：①未接管→显示 ②接管→隐藏 ③`overrides.hide`→隐藏 | 用 `overrides` 人为造第三种 | 你 |
-| **AC-6** | 无选中模型（空白新会话）时不渲染、不发请求 | Network 面板无新增请求 | 你 |
+| **AC-6** | 空白新会话：v0.1.0 曾要求「不渲染、不发请求」；**v0.1.1 起改为显示部署默认通道**（见 ADR-7） | 新会话未发消息即看到默认供应商名 | 你 |
 | **AC-7** | 暗色/亮色主题下均使用主题 token，无硬编码色值 | 切换主题目视 + grep 校验 | 你 + 静态 |
 | **AC-8** | 卸载插件后，宿主恢复原样，无残留样式/请求 | 禁用后刷新比对 | 你 |
 
@@ -259,6 +294,22 @@ GET /plugins/dsh-provider-show/providers
 3. 重点确认 AC-2：选中 WorkBuddy 时我方**不出现**任何新元素。
 
 以上均已执行并通过。
+
+### v0.1.1：新会话不显示供应商（2026-11-03，用户报告后修）
+
+现象：通过 DSH 新建会话时，右下角没有供应商；必须切一次模型才出现。
+
+根因（详见 ADR-7）：我们只读了 `modelSelection` 投影的两条腿（`pending` / 上次请求头），
+缺了第三条「部署默认」——那条数据只在 Host 侧。
+
+用户实测确认：**发出第一条消息后芯片会自己出现**，与投影 `lastUsed` 落盘时机一致，
+这条观测独立佐证了根因，也排除了「第二个 bug」。
+
+改动：
+- `lib/index.js`：`describeProviders()` 多返回 `default: { provider, model } | null`，
+  从 `ctx.get('agentDefaultModel')?.currentSelection()` 读；缺失/抛错/形状非法一律 `null`。
+- `lib/client.js`：文档改为无条件拉取；`providerId = selection?.next?.provider ?? document?.default?.provider`。
+- 测试 38 → 47；静态校验 23 → 25（新增：Host 必须发布默认、客户端必须只从文档取默认且不得越过显式选择）。
 
 ## 十、Loader 行 id 与包名的关系（改这里之前必读）
 

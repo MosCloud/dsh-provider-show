@@ -1,6 +1,6 @@
 {
   "name": "dsh-provider-show",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shows which provider the selected model belongs to in the composer row, and stays silent for providers another plugin already presents.",
   "type": "module",
   "main": "lib/index.js",

@@ -28,7 +28,7 @@ dsh plugin --profile <你的-profile> add /path/to/dsh-provider-show
 卸载通过插件管理页，或从 profile 的插件清单移除。
 
 > npm 12 会留下一个 `0.0.0-stage` 占位版本（339 字节），是其暂存发布机制的产物；
-> `latest` 指向真正的 `0.1.0`，安装不受影响。
+> `latest` 指向真正的发布版本，安装不受影响。
 
 ## 配置
 
@@ -72,6 +72,12 @@ dsh plugin --profile <你的-profile> add /path/to/dsh-provider-show
 - 其他任何值 —— 某个插件用**自己的** entry id 注册的，例如 `dsh-connect-workbuddy`
 
 第 3 条选 fail-open 是因为两种错误代价不对等：漏显只是信息不全，而误判会让**所有**供应商都不显示。
+
+**新会话显示什么**：会话还没有任何模型选择时（没切过模型、也没发过消息），`modelSelection`
+投影是空的 —— 此时显示的是**部署默认模型所属的供应商**。这个默认值由 Host 从
+`agentDefaultModel` 服务读出，与模型座位同源，所以芯片和座位不会各说各话。
+发出第一条消息或切一次模型之后，改由该会话自己的选择决定。
+默认通道若被第三方插件接管，仍然让位。
 
 ## 架构
 

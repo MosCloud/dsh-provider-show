@@ -28,8 +28,26 @@ const DOCUMENT = {
       { provider: 'volcano-han', displayName: '火山API', label: '火山API', visible: true, owner: 'core', reason: 'core-namespace' },
       // The Latin control case for the same check.
       { provider: 'deepseek-official', displayName: 'DeepSeek Account', label: 'DeepSeek Account', visible: true, owner: 'core', reason: 'core-namespace' },
+      // The live deployment default on this machine: a pi-ai route with no
+      // configured display name, so its label is the route id itself.
+      { provider: 'opencode-go', displayName: 'opencode-go', label: 'opencode-go', visible: true, owner: 'core', reason: 'core-namespace' },
     ],
   },
+}
+
+/**
+ * The same document plus the deployment default the Host publishes.
+ *
+ * A brand-new Session has no `modelSelection` (`{ lastUsed: null, next: null }`),
+ * so this field is the only thing that names the provider in effect before the
+ * first pick or the first request.
+ *
+ * @param {string} providerId - provider the deployment defaults to.
+ * @param {object} [document] - base document.
+ * @returns {object} the Host reply.
+ */
+function withDefault(providerId, document = DOCUMENT) {
+  return { ok: true, value: { ...document.value, default: { provider: providerId, model: 'a-default-model' } } }
 }
 
 /**
@@ -141,8 +159,22 @@ const t = (key, params) => `${key}|${params.provider}`
  * @returns {Promise<object | null>} the final element.
  */
 async function mount(client, providerId) {
+  return mountWith(client, { next: { provider: providerId, model: 'a-model' } })
+}
+
+/**
+ * Mount with an explicit `modelSelection` view.
+ *
+ * `{ lastUsed: null, next: null }` is the projection state of a Session that has
+ * neither picked a model nor sent a request — the shape a brand-new Session has.
+ *
+ * @param {object} client - the loaded client surface.
+ * @param {object} view - the projection's view.
+ * @returns {Promise<object | null>} the final element.
+ */
+async function mountWith(client, view) {
   const props = () => ({
-    useProjection: () => ({ next: { provider: providerId, model: 'a-model' } }),
+    useProjection: () => view,
     sessionId: 'session-1',
     t,
   })
@@ -181,15 +213,42 @@ test('a configured short name is what the chip shows', async () => {
   assert.equal(element.children[0].children[0], '短名')
 })
 
-test('no selection renders nothing', async () => {
+test('a brand-new session labels the deployment default before any selection', async () => {
+  const client = await loadClient({ document: withDefault('opencode-go') })
+  // The projection is empty exactly as it is before the first pick or request;
+  // the seat already shows the default model, so the chip must name its provider.
+  const element = await mountWith(client, { lastUsed: null, next: null })
+  assert.notEqual(element, null, 'the default channel must be labelled on a fresh Session')
+  assert.equal(element.props.className, 'dpsp-root')
+  assert.equal(element.children[0].children[0], 'opencode-go')
+})
+
+test('an explicit selection outranks the deployment default', async () => {
+  const client = await loadClient({ document: withDefault('opencode-go') })
+  const element = await mountWith(client, { lastUsed: null, next: { provider: 'huoshan', model: 'a-model' } })
+  assert.equal(element.children[0].children[0], '火山API', 'the chosen provider must win over the default')
+})
+
+test('a last-used selection outranks the deployment default', async () => {
+  const client = await loadClient({ document: withDefault('opencode-go') })
+  const element = await mountWith(client, { lastUsed: { provider: 'huoshan', model: 'a-model' }, next: { provider: 'huoshan', model: 'a-model' } })
+  assert.equal(element.children[0].children[0], '火山API')
+})
+
+test('a third-party provider as the deployment default stays silent', async () => {
+  const client = await loadClient({ document: withDefault('workbuddy') })
+  assert.equal(await mountWith(client, { lastUsed: null, next: null }), null)
+})
+
+test('no selection and no published default renders nothing', async () => {
   const client = await loadClient()
-  client.startMount()
-  const element = client.component({
-    useProjection: () => ({ lastUsed: null, next: null }),
-    sessionId: 'session-1',
-    t,
-  })
-  assert.equal(element, null)
+  assert.equal(await mountWith(client, { lastUsed: null, next: null }), null)
+  assert.equal(await mountWith(client, undefined), null, 'an unwired projection is the same case')
+})
+
+test('a default naming a provider the directory lacks renders nothing', async () => {
+  const client = await loadClient({ document: withDefault('not-in-directory') })
+  assert.equal(await mountWith(client, { lastUsed: null, next: null }), null)
 })
 
 test('an unknown provider renders nothing', async () => {
