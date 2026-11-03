@@ -16,13 +16,14 @@
   },
   "icon": "./icon.svg",
   "files": [
+    "LICENSE",
+    "README.md",
+    "cordis.patch.yml",
+    "findings.md",
+    "icon.svg",
     "lib",
     "locale",
-    "icon.svg",
-    "cordis.patch.yml",
-    "README.md",
-    "task_plan.md",
-    "findings.md"
+    "task_plan.md"
   ],
   "dsh": {
     "bundle": {

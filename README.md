@@ -38,7 +38,7 @@ DSH 的模型选择器（composer 模型位）自带两项信息：
 ## 安装
 
 ```bash
-dsh plugin --profile <你的-profile> add /Users/zbw/Developer/dsh-provider-show
+dsh plugin --profile <你的-profile> add /path/to/dsh-provider-show
 ```
 
 或在插件管理页安装该本地目录。安装后**刷新页面**。

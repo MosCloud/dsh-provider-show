@@ -43,7 +43,7 @@
 
 ## 一、目标（Objective）
 
-在当前仓库 `/Users/zbw/Developer/dsh-provider-show` 内，产出**一个可安装的 DSH 插件包**，
+在当前仓库（`dsh-provider-show`）内，产出**一个可安装的 DSH 插件包**，
 使 composer 右下角的模型信息区，在**任何供应商**下都完整展示「供应商 · 模型 · 推理强度」，
 且当该供应商已被第三方插件接管时自动让位、不产生重复信息。
 
@@ -221,6 +221,6 @@ GET /plugins/dsh-provider-show/providers
 
 ### P5 待办（需要你在可审批会话执行）
 
-1. `dsh plugin --profile <profile> add /Users/zbw/Developer/dsh-provider-show`，或在插件管理页安装本目录。
+1. `dsh plugin --profile <profile> add /path/to/dsh-provider-show`，或在插件管理页安装本目录。
 2. 刷新页面，按第六节的 AC-1 ~ AC-8 逐项核对。
 3. 重点确认 AC-2：选中 WorkBuddy 时我方**不出现**任何新元素。
