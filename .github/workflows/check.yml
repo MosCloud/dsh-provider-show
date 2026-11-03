@@ -1,0 +1,33 @@
+name: check
+
+# No dependency install step: this package has no dependencies at all, and
+# `npm run check` only runs Node's syntax checker, a file-reading verifier and
+# the built-in test runner. A bare checkout is enough, which keeps the job fast
+# and means a green run cannot be explained by a lucky lockfile.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Both ends of the range DSH itself supports (^22.19 || >=24).
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Syntax, static checks and tests
+        run: npm run check

@@ -208,9 +208,10 @@ GET /plugins/dsh-provider-show/providers
 | 纯逻辑 + 单测（P1） | ✅ | `lib/ownership.js`，19 项单测 |
 | Host 半（P2） | ✅ | 只读 GET 路由 + 纯数据配置；11 项行为测试 |
 | Client 半（P3） | ✅ | `conversation.input.right` 注册；Node 端组件冒烟通过 |
-| 静态校验（P4） | ✅ | `scripts/verify.mjs` 20 项，已做反证测试 |
+| 静态校验（P4） | ✅ | `scripts/verify.mjs` 23 项，逐条做过反证测试 |
 | 安装（P5 前半） | ✅ | 已装入 desktop profile；Host 行 `fiberPhase: active`；路由实测 200 |
-| 浏览器视觉验收（P5 后半） | ⏳ 待你确认 | 无头环境取不到带鉴权的页面 |
+| 浏览器视觉验收（P5 后半） | ✅ | 用户实测通过；排版问题按 2 倍截图量测后修正（见下） |
+| 开源（P6） | ✅ | 已推送 https://github.com/MosCloud/dsh-provider-show |
 
 ### 实施中发现并修正的问题
 
@@ -219,8 +220,38 @@ GET /plugins/dsh-provider-show/providers
 3. **`hide` 覆盖值未实现** → 配置项描述存在但无行为。改为在 `resolveOwnership` 上携带 `hidden` 标记，保证 overrides 表只有一个读者。
 4. **Host 半不可 import `@deepseek-ai/schemastery`** → 链接式安装下整个 Host 半加载失败（已用模拟安装复现 `ERR_MODULE_NOT_FOUND`）。改为纯数据配置（`CONFIG_KEYS` + `effectiveConfig`），不导出 `Config`。
 
-### P5 待办（需要你在可审批会话执行）
+### 排版对齐的返工记录（重要）
 
-1. `dsh plugin --profile <profile> add /path/to/dsh-provider-show`，或在插件管理页安装本目录。
+早期判断「汉字在拉丁基线上天然偏高，必须做光学补偿」，并连续加过 `+2px` → `1px` 的位移补偿，
+**这个判断是错的**，最终把整套补偿机制删除。
+
+错因：当时芯片是 12px、模型名是 13px，字号不一致造成的基线差异被误读成「字体脚本差异」。
+字号统一到 13px 后，从 2 倍截图实测墨迹质心（1 CSS px = 2 图像 px）：
+
+| 文字块 | 墨迹行范围 | 质心 |
+|---|---|---|
+| `火山` | 19..43 | 33.12 |
+| `DeepSeek` | 19..42 | 29.80 |
+| `Flash` | 19..38 | 28.90 |
+| `×0.20` | 19..38 | 28.76 |
+| `High` | 19..42 | 30.02 |
+
+拉丁均值约 29.4。挂 `+2px` 时汉字质心 33.12（**低 1.85 CSS px**），去掉后落到 29.1（齐平）。
+**结论：同字号下最优补偿是 0。**
+
+现在 `verify.mjs` 有一条反向防护：客户端或样式表里出现 `translateY(` 即判红，
+防止这个结论再被"凭感觉"推翻。
+
+### 已完成的安装验收（留档）
+
+1. `dsh plugin --profile <profile> add /path/to/dsh-provider-show`
+2. 刷新页面
+3. 核对：火山API 显示供应商、WorkBuddy 不重复显示、窄窗与暗色主题正常
+
+### 原 P5 待办（已完成，留档）
+
+1. 安装本目录到目标 profile。
 2. 刷新页面，按第六节的 AC-1 ~ AC-8 逐项核对。
 3. 重点确认 AC-2：选中 WorkBuddy 时我方**不出现**任何新元素。
+
+以上均已执行并通过。

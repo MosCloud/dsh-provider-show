@@ -1,5 +1,7 @@
 # dsh-provider-show
 
+[![check](https://github.com/MosCloud/dsh-provider-show/actions/workflows/check.yml/badge.svg)](https://github.com/MosCloud/dsh-provider-show/actions/workflows/check.yml)
+
 在 DSH 输入框右下角的「模型 · 推理强度」前面，补上**当前模型所属的供应商**。
 
 已被其他插件接管的供应商（例如 WorkBuddy）保持原样，不重复显示。
@@ -194,33 +196,30 @@ manifest 完整性、图标合法性与体积、locale 非占位文案、客户�
 
 ## 状态
 
-**已安装到 `desktop` profile，Host 半运行时验证通过。**
+**已完成：安装 → 运行 → 视觉验收。全部验收项通过。**
 
 | 项 | 结果 |
 |---|---|
-| 安装 | `dsh-provider-show 0.1.0` 已进入 profile bundles 与依赖（`link:` 指向本仓库） |
+| 安装 | 进入 profile bundles 与依赖（本地目录 `link:`） |
 | Host 行 | `fiberPhase: active` |
-| 只读路由 | `GET /plugins/dsh-provider-show/providers` 实测返回 200 与正确决策 |
-| 真实判定 | `huoshan` / `火山API` → 显示；`workbuddy` / `workbuddy-global` → 让位 |
-| 芯片渲染逻辑 | 35 项测试覆盖（含用真实 Host 文档跑通组件；已用变异测试反证两条关键断言） |
-| 静态校验 | 20 项全绿 |
+| 只读路由 | `GET /plugins/dsh-provider-show/providers` 实测 200，决策正确 |
+| 真实判定 | `火山API` → 显示；`workbuddy` / `workbuddy-global` → 让位 |
+| 视觉验收 | 供应商与模型/强度齐平、间距合适、纯拉丁与中文均正常 |
+| 测试 | 38 项（归属规则、Host 路由行为、Client 渲染） |
+| 静态校验 | 23 项，逐条做过反证测试 |
+| CI | GitHub Actions 在 Node 22 / 24 上跑同一套检查 |
 
-**尚未验证的部分**：芯片在真实浏览器 composer 里的**视觉**呈现（位置、宽度、
-与宿主控件并排的效果）。本会话的无头环境无法取到带鉴权的页面
-（`GET /` 返回 `dsh web authentication required`），客户端模块图也需要同样的鉴权。
+### 卸载
 
-组件的渲染逻辑本身已用**本机真实 Host 文档**跑通：`huoshan` 渲染出
-`<span class="dpsp-root">火山API</span>`，`workbuddy` / `workbuddy-global` 返回 `null`。
-所以剩下的是「装上去长什么样」，而不是「逻辑对不对」。
+插件管理页禁用该 bundle，或从 profile 依赖里移除 `dsh-provider-show`。
 
-### 请你验收（约 1 分钟）
+## 文档
 
-1. 刷新页面（插件是安装后新加的客户端模块，**必须刷新**才会加载）。
-2. 在输入框右下角看两件事：
-   - 选 **火山API** → 模型选择器左侧应出现 `火山API`；
-   - 选 **WorkBuddy** → 我方**不出现**任何东西（与图2 一致）。
-3. 若火山那一侧没出现芯片，把浏览器 Console 的前 20 行发我 —— 最可能的两种原因：
-   - 客户端模块未加载（刷新不彻底 / 需要重启 `dsh web`）；
-   - 插槽注册被 `slots` 服务时序挡住。
+| 文件 | 内容 |
+|---|---|
+| [docs/design.md](docs/design.md) | 需求确认、架构决策（ADR）、边界约束、验收标准、返工记录 |
+| [docs/research.md](docs/research.md) | 技术考据：槽位拓扑、归属判定信号、排版实测数据，均带源码文件与行号 |
 
-卸载：插件管理页禁用该 bundle，或从 profile 依赖里移除 `dsh-provider-show`。
+## 许可
+
+[MIT](LICENSE)

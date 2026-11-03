@@ -16,14 +16,13 @@
   },
   "icon": "./icon.svg",
   "files": [
-    "LICENSE",
-    "README.md",
-    "cordis.patch.yml",
-    "findings.md",
-    "icon.svg",
     "lib",
     "locale",
-    "task_plan.md"
+    "docs",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
   ],
   "dsh": {
     "bundle": {
@@ -38,8 +37,8 @@
     }
   },
   "scripts": {
-    "test": "node --test \"test/**/*.test.mjs\"",
-    "check": "node --check lib/index.js && node --check lib/client.js && node --check lib/ownership.js && node scripts/verify.mjs && node --test \"test/**/*.test.mjs\""
+    "test": "node --test",
+    "check": "node --check lib/index.js && node --check lib/client.js && node --check lib/ownership.js && node scripts/verify.mjs && node --test"
   },
   "keywords": [
     "dsh-plugin",
@@ -47,5 +46,8 @@
     "provider",
     "composer"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  }
 }
