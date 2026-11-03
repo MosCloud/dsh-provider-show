@@ -209,7 +209,8 @@ GET /plugins/dsh-provider-show/providers
 | Host 半（P2） | ✅ | 只读 GET 路由 + 纯数据配置；11 项行为测试 |
 | Client 半（P3） | ✅ | `conversation.input.right` 注册；Node 端组件冒烟通过 |
 | 静态校验（P4） | ✅ | `scripts/verify.mjs` 20 项，已做反证测试 |
-| 安装 + 浏览器验收（P5） | ⛔ 阻塞 | 本会话审批为 `never`，`plugin_manager` 动作被自动拒绝 |
+| 安装（P5 前半） | ✅ | 已装入 desktop profile；Host 行 `fiberPhase: active`；路由实测 200 |
+| 浏览器视觉验收（P5 后半） | ⏳ 待你确认 | 无头环境取不到带鉴权的页面 |
 
 ### 实施中发现并修正的问题
 

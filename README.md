@@ -168,11 +168,16 @@ manifest 完整性、图标合法性与体积、locale 非占位文案、客户�
 | Host 行 | `fiberPhase: active` |
 | 只读路由 | `GET /plugins/dsh-provider-show/providers` 实测返回 200 与正确决策 |
 | 真实判定 | `huoshan` / `火山API` → 显示；`workbuddy` / `workbuddy-global` → 让位 |
-| 代码与测试 | 27 项测试 + 20 项静态校验全绿 |
+| 芯片渲染逻辑 | 35 项测试覆盖（含用真实 Host 文档跑通组件；已用变异测试反证两条关键断言） |
+| 静态校验 | 20 项全绿 |
 
-**尚未验证的部分**：芯片在浏览器 composer 里的实际渲染。本会话的无头环境无法取到
-带鉴权的页面（`GET /` 返回 `dsh web authentication required`），客户端模块图也需要
-同样的鉴权才能读取。
+**尚未验证的部分**：芯片在真实浏览器 composer 里的**视觉**呈现（位置、宽度、
+与宿主控件并排的效果）。本会话的无头环境无法取到带鉴权的页面
+（`GET /` 返回 `dsh web authentication required`），客户端模块图也需要同样的鉴权。
+
+组件的渲染逻辑本身已用**本机真实 Host 文档**跑通：`huoshan` 渲染出
+`<span class="dpsp-root">火山API</span>`，`workbuddy` / `workbuddy-global` 返回 `null`。
+所以剩下的是「装上去长什么样」，而不是「逻辑对不对」。
 
 ### 请你验收（约 1 分钟）
 
