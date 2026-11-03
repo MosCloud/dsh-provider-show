@@ -1,7 +1,6 @@
 {
   "name": "dsh-provider-show",
   "version": "0.1.0",
-  "private": true,
   "description": "Shows which provider the selected model belongs to in the composer row, and stays silent for providers another plugin already presents.",
   "type": "module",
   "main": "lib/index.js",
@@ -18,7 +17,6 @@
   "files": [
     "lib",
     "locale",
-    "docs",
     "icon.svg",
     "cordis.patch.yml",
     "README.md",
@@ -49,5 +47,20 @@
   "license": "MIT",
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
+  },
+  "author": {
+    "name": "MosCloud"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MosCloud/dsh-provider-show.git"
+  },
+  "homepage": "https://github.com/MosCloud/dsh-provider-show#readme",
+  "bugs": {
+    "url": "https://github.com/MosCloud/dsh-provider-show/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

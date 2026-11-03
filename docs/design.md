@@ -255,3 +255,50 @@ GET /plugins/dsh-provider-show/providers
 3. 重点确认 AC-2：选中 WorkBuddy 时我方**不出现**任何新元素。
 
 以上均已执行并通过。
+
+## 十、Loader 行 id 与包名的关系（改这里之前必读）
+
+patch 里 `id` 与 `name` 是两个独立字段，宿主从不派生其中一个：
+
+```yaml
+- insert:
+    - id: dsh-provider-show      # Loader 行 id：配置覆盖、按行启用状态的键
+      name: dsh-provider-show    # 模块标识：包名，或包内子路径
+```
+
+**两者不会随版本自动分叉**，只会在下列情形不一致（均有实例）：
+
+| 情形 | 实例 |
+|---|---|
+| 发布改用带 scope 的包名 | `@michengai/dsh-skills-manager` → id `skills-manager` |
+| 一个包插多行（id 必须唯一） | `@deepseek-ai/dsh-agent-preset` 被 4 个 preset 补丁以 `preset-standard` / `preset-ptc` / `preset-minimal` / `preset-cordis` 插入，`name` 全相同 |
+| 短 id 习惯 | `dsh-session-purge` → `session-purge`；`dshmarket` → `dsh-market`。反例并存：`dsh-context`、`dsh-connect-workbuddy` 就是 id == 包名 |
+| 覆盖内置行 | profile 补丁按 `id` 覆盖内置行（id 必须与内置一致），`name` 指向替换包 |
+| 子路径行 | `name: 'my-plugins/search'` —— 不是包名 |
+
+### 对本插件的影响
+
+- **改 id 不影响功能**：路由路径写死 `/plugins/dsh-provider-show/providers`；客户端模块 id 取包名；宿主侧不读自己的 entry id。
+- **但 id 一旦发布就是用户契约**：profile 里的 `- id: …` 覆盖、插件管理器按行的启用状态，都以 id 为键。改 id 会让这些失效。
+- 对**供应商类**插件还有一层：entry id 兼作 provider 的 `settingsNs`，而本插件正是靠它判定「供应商是否被第三方接管」。所以 id 不只是显示名。
+
+### 决策
+
+- 当前 `id == 包名`，保持。
+- 若将来发布到 npm 时改用带 scope 的包名（如 `@moscloud/dsh-provider-show`），**把 id 保持 `dsh-provider-show` 不变** —— id 稳定、包名可变，正是这套机制存在的意义。
+- 只有真新增第二个组件行时才需要新的 id。
+
+### 与「包含的组件」重复显示的关系
+
+插件详情页对该行会打印两个标识，条件是它们与标题不同：
+
+```js
+title === row.rowId      ? null : <code>{row.rowId}</code>
+title === row.moduleName ? null : <code>{row.moduleName}</code>
+```
+
+本插件提供了本地化标题（「供应商信息补全」），而 `rowId === moduleName`，于是同一串打印两次。
+行标题与描述都按**包名**取元信息（`metaOf(row.name)`），因此必然与页面顶部重复。
+
+这是宿主的展示行为，**不是本插件的缺陷**，也不建议为它把 id 改成短名（收益只是少一次重复字符串，代价是让用户多记一个标识）。
+WorkBuddy 之所以看不出重复，是因为它的 `meta.title` 直接用了包名本身。
