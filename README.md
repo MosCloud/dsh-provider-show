@@ -227,6 +227,7 @@ manifest 完整性、图标合法性与体积、locale 非占位文案、客户�
 
 | 文件 | 内容 |
 |---|---|
+| [docs/lessons.md](docs/lessons.md) | **开发经验与踩坑记录**——插槽生命周期、验证方法论、发布流程。做同类插件前先读这篇 |
 | [docs/design.md](docs/design.md) | 需求确认、架构决策（ADR）、边界约束、验收标准、返工记录 |
 | [docs/research.md](docs/research.md) | 技术考据：槽位拓扑、归属判定信号、排版实测数据，均带源码文件与行号 |
 
