@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Provider Label">
+  <title>Provider Label</title>
+  <!-- A tag/label silhouette: the chip this plugin draws beside the model seat.
+       Two tags, the smaller behind, read as "the model, and the provider it
+       came from". Rendered in the product's brand blue and a muted second tier
+       so it stays legible on both the light and dark plugin panels, which have
+       their own surface colours rather than the page's. -->
+  <rect x="6" y="18" width="34" height="24" rx="6" fill="#5686fe" opacity="0.35"/>
+  <path d="M24 12h22a6 6 0 0 1 6 6v14a6 6 0 0 1-6 6H34l-10-8 10-8z" fill="#5686fe"/>
+  <circle cx="46" cy="21" r="3" fill="#ffffff"/>
+  <rect x="24" y="30" width="20" height="3" rx="1.5" fill="#ffffff" opacity="0.85"/>
+</svg>

@@ -1,0 +1,24 @@
+# dsh-provider-show — bundle patch.
+#
+# Inserts one plugin row. The row's id is also the settings namespace the Host
+# half's route is namespaced under, and the `provider` namespaces it treats as
+# core by default come from the shipped dsh-base patch, not from this row.
+#
+# Configuration (optional; every key has a default, and this patch replaces the
+# whole `config` object when it names one):
+#
+#   - id: dsh-provider-show
+#     name: dsh-provider-show
+#     config:
+#       enabled: true
+#       shortNames:
+#         volcano-api: 火山
+#       overrides:
+#         some-connector-provider: third-party
+#       coreNamespaces:
+#         - llm-pi-ai
+#         - llm-deepseek
+#         - llm-deepseek-account
+- insert:
+    - id: dsh-provider-show
+      name: dsh-provider-show

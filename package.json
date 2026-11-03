@@ -1,0 +1,50 @@
+{
+  "name": "dsh-provider-show",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shows which provider the selected model belongs to in the composer row, and stays silent for providers another plugin already presents.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./locale/*.json": "./locale/*.json",
+    "./ownership": "./lib/ownership.js",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "icon": "./icon.svg",
+  "files": [
+    "lib",
+    "locale",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md",
+    "task_plan.md",
+    "findings.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "check": "node --check lib/index.js && node --check lib/client.js && node --check lib/ownership.js && node scripts/verify.mjs && node --test \"test/**/*.test.mjs\""
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "provider",
+    "composer"
+  ],
+  "license": "MIT"
+}
