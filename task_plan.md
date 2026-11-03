@@ -187,16 +187,39 @@ GET /plugins/dsh-provider-show/providers
 | P4 | 静态校验：`node --check`、manifest 自检、token grep | 校验脚本 | `scripts/` |
 | P5 | 安装与浏览器验收（需审批权限） | 截图对照 AC-1/2 | — |
 
-## 八、需要你决定的问题
+## 八、已确认的决策（2026-11-03）
 
-1. **ADR-2 的判定信号**你认可吗？（`settingsNs` 不在内置名单 ⇒ 视为已被插件接管）
-   这是目前唯一可靠且无需配置的信号；其余（模型名后缀、provider id 前缀）都是启发式。
-2. **ADR-3 的 fail-open 默认**你认可吗？（探测失败时默认「显示供应商」，即宁可多显示也不误隐藏）
-3. **`showModel` / `showEffort` 默认值**：我建议都 `false`（宿主已渲染，重复即噪声）。
-   但如果你希望芯片是「自足的一行」（截图/复制的场景），可以改 `true`。
-4. **供应商展示名**：直接用目录里的 `displayName`（pi-ai 里是你在设置里填的名字），
-   还是维护一份短名映射（`火山` / `WB CN` 风格）？我建议默认用 `displayName` + 可配 `shortNames`。
-5. **验收方式**：AC-1~AC-8 需要在**可审批**的会话里跑（本会话 `approval: never`，
-   `plugin_manager` 会被自动拒绝）。你希望
-   (a) 本轮只交付代码+文档，你在别的会话安装验收；还是
-   (b) 先把审批策略切回来，我装好并给出截图？
+| # | 问题 | 决定 |
+|---|---|---|
+| 1 | 让位粒度 | **整段让出**：第三方接管时我方完全不渲染 |
+| 2 | 归属判定信号 | **settingsNs 判定 + 可配置覆盖** |
+| 3 | 探测失败默认 | **fail-open**：默认显示供应商 |
+| 4 | 芯片内容 | **只补供应商名**（模型与强度宿主已渲染） |
+| 5 | 验收方式 | 本轮交付代码+文档+自测，安装验收在可审批的会话进行 |
+
+## 九、交付状态
+
+已完成（P0–P4）：
+
+| 项 | 状态 | 证据 |
+|---|---|---|
+| 仓库 git 化 | ✅ | 3 个提交，工作区干净 |
+| 包骨架（P0） | ✅ | `package.json` / `cordis.patch.yml` / `locale/` / `icon.svg` |
+| 纯逻辑 + 单测（P1） | ✅ | `lib/ownership.js`，19 项单测 |
+| Host 半（P2） | ✅ | 只读 GET 路由 + 纯数据配置；11 项行为测试 |
+| Client 半（P3） | ✅ | `conversation.input.right` 注册；Node 端组件冒烟通过 |
+| 静态校验（P4） | ✅ | `scripts/verify.mjs` 20 项，已做反证测试 |
+| 安装 + 浏览器验收（P5） | ⛔ 阻塞 | 本会话审批为 `never`，`plugin_manager` 动作被自动拒绝 |
+
+### 实施中发现并修正的问题
+
+1. **`apply` 返回值被丢弃** → 路由会注册后永久泄漏。改为 `scope.effect(...)` 持有。
+2. **`ctx.get('webServer')` 一次性探测** → 服务晚激活则路由永不注册。改为 `ctx.inject(['webServer'], ...)`。
+3. **`hide` 覆盖值未实现** → 配置项描述存在但无行为。改为在 `resolveOwnership` 上携带 `hidden` 标记，保证 overrides 表只有一个读者。
+4. **Host 半不可 import `@deepseek-ai/schemastery`** → 链接式安装下整个 Host 半加载失败（已用模拟安装复现 `ERR_MODULE_NOT_FOUND`）。改为纯数据配置（`CONFIG_KEYS` + `effectiveConfig`），不导出 `Config`。
+
+### P5 待办（需要你在可审批会话执行）
+
+1. `dsh plugin --profile <profile> add /Users/zbw/Developer/dsh-provider-show`，或在插件管理页安装本目录。
+2. 刷新页面，按第六节的 AC-1 ~ AC-8 逐项核对。
+3. 重点确认 AC-2：选中 WorkBuddy 时我方**不出现**任何新元素。
