@@ -221,29 +221,17 @@ check('the chip copies the model trigger typography and line box', () => {
   assert(!css.includes('font-family'), 'the chip must inherit the font family, not pick one')
 })
 
-check('the chip measures the Han offset instead of trusting a constant', () => {
-  const source = text('lib/client.js')
-  assert(/getContext\('2d'\)/.test(source), 'the client never creates a text-metrics context')
-  assert(source.includes('actualBoundingBoxAscent'), 'the measurement does not read the ink box')
-  assert(source.includes('actualBoundingBoxDescent'), 'the measurement does not read the ink box')
-  assert(/LATIN_REFERENCE\s*=\s*'\w+'/.test(source), 'no Latin reference sample is defined')
-  assert(/Math\.max\(-2,\s*Math\.min\(2,/.test(source), 'the measured offset is not clamped to ±2px')
-})
-
-check('a Han label takes the optical nudge, a Latin one does not', () => {
-  const source = text('lib/client.js')
+check('the chip aligns by matched metrics, not by a vertical shift', () => {
   const css = chipCss()
-  // Han/Kana/Hangul glyphs fill the em box and carry no descender, so they sit
-  // high beside Latin text. The correction is calibrated on the desktop build
-  // (0px high, 2px low, 1px level) rather than derived from a proxy font.
-  assert(/const CJK = \/[^\n]+\//.test(source), 'the client does not detect CJK scripts')
-  assert(/data-cjk/.test(source), 'the rendered label carries no CJK marker')
-  const rule = /\.dpsp-root\[data-cjk="true"\]\s*\.dpsp-name\{([^}]*)\}/.exec(css)
-  assert(rule !== null, 'the stylesheet has no CJK rule')
-  const shift = /translateY\(([\d.]+)px\)/.exec(rule[1])
-  assert(shift !== null, 'the CJK rule does not shift the text')
-  const px = Number(shift[1])
-  assert(px >= 0.5 && px <= 2.5, `the FALLBACK nudge must stay between 0.5px and 2.5px, got ${px}px`)
+  const source = text('lib/client.js')
+  // A 2x screenshot measured the Han ink centroid 1.85 CSS px LOW once nudged,
+  // and level with the Latin centroid at zero. Any translateY here would be a
+  // regression dressed up as a fix, so the rule is: no shift at all.
+  // Match the CALL, not the word: the surrounding comments explain why the
+  // shift was removed and legitimately name it.
+  assert(!css.includes('translateY('), 'the stylesheet shifts the label vertically')
+  assert(!source.includes('translateY('), 'the client applies a vertical shift')
+  assert(!source.includes('actualBoundingBox'), 'a per-script measurement is back; it was measured wrong')
 })
 
 check('the composed provider-to-model gap is tight', () => {

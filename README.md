@@ -120,30 +120,38 @@ lib/client.js         Client 半：注册 conversation.input.right，读宿主�
 所以芯片有 `max-width: 140px` 与省略号截断，并用 `margin-inline-end:-10px`
 抵消宿主的 12px 栅格间距。
 
-**排版对齐的三条约束**（都由 `scripts/verify.mjs` 守住）：
+**排版对齐：靠"同度量"，不靠位移**（由 `scripts/verify.mjs` 守住）
 
 | 约束 | 原因 |
 |---|---|
-| `font-size:13px` + `font-weight:400` + `line-height:20px` + `height:28px` + `align-items:center` | 与模型触发器 `.htuFrW_trigger` **完全同一套排版度量**，且**不声明 `font-family`**（两者都继承同一个字体栈）。字号与行盒一致时基线自动重合——基线位置是 `14 − (ascent+descent)/2 + ascent`，与 `line-height` 无关，所以行盒相同即基线相同。 |
+| `font-size:13px` + `font-weight:400` + `line-height:20px` + `height:28px` + `align-items:center`，且**不声明 `font-family`** | 与模型触发器 `.htuFrW_trigger` 完全同一套度量。行盒内基线位置是 `half-leading + ascent`，**由字号与字体决定、与 `line-height` 无关**；度量相同 ⇒ 基线自动重合，不需要任何对齐技巧。 |
 | `margin-inline-end:-10px`、自身 `padding:0` | 宿主 `.standardControls` 有 12px `gap`，模型触发器又有 8px 左内边距；不补偿则两标签相距约 20px，补偿后约 10px，读作一行。 |
-| 中文标签运行时实测位移（CSS 里 `translateY(1px)` 仅作兜底） | 汉字占满 em 框、几乎没有下伸部，而拉丁字母经 `p`/`g` 下探。**共享基线并不等于视觉对齐**——偏的是墨迹分布，不是基线。所以换字号救不了它，必须单独补偿。 |
+| **禁止 `translateY`** | 见下节。任何人再想加中文补偿，`verify.mjs` 会直接判红。 |
+
+### 中文曾经"不居中"的真相（有实测数据）
+
+早期我在 12px 字号下看到中文偏高，推断是"汉字占满 em 框、无下伸部"导致的，于是加了位移补偿。
+**这个推断在字号不一致的前提下才成立，字号对齐后就不成立了。**
+
+从 2 倍截图里量每个文字块的墨迹质心（1 CSS px = 2 图像 px）：
+
+| 文字块 | 墨迹行范围 | 质心 |
+|---|---|---|
+| `火山` | 19..43 | **33.12** |
+| `DeepSeek` | 19..42 | 29.80 |
+| `Flash` | 19..38 | 28.90 |
+| `×0.20` | 19..38 | 28.76 |
+| `High` | 19..42 | 30.02 |
+
+拉丁质心均值约 **29.4**。加上 `+2px` 补偿后汉字质心 33.12，比拉丁**低 3.7 图像 px ≈ 1.85 CSS px**；
+去掉补偿正好落到 29.1，与拉丁齐平。**所以 13px 下的最优补偿是 0。**
+
+这也解释了为什么纯拉丁标签一直正常：它们的位移恒为 0，从未被补偿影响。
 
 ### 为什么层级靠颜色而不是字号
 
-宿主自己就是这么做的：模型名是 `label-secondary`、推理强度是 `label-caption`，**两者都是 13px**，
-只靠颜色分层。供应商作为第三层，用 `label-tertiary`、同为 13px，于是整行读作
-「供应商 · 模型 · 强度」一个视觉单位，而不是三个不同字号拼起来的杂排。
-
-### 中文补偿为什么改成运行时实测
-
-汉字与拉丁的墨迹中心差约 `0.13em`，但这个值**依赖具体字体**：macOS 可能回退 PingFang 或
-Hiragino，Windows 是微软雅黑，Linux 各不相同。写死一个数字，换台机器就会重新偏掉。
-
-所以组件用 Canvas 的 `measureText` 读实际字体的 `actualBoundingBoxAscent/Descent`，
-把中文标签的墨迹中心对齐到拉丁样本 `Hp` 的墨迹中心，结果以 inline `transform` 应用：
-- 有 Canvas → 用实测值（自动跨平台/跨字体正确）；
-- 无 Canvas → 回落到 CSS 里的 `1px` 常量，绝不留下明显偏高；
-- 实测值被夹在 ±2px，避免异常度量把文字推出行外。
+宿主自己就是这么做的：模型名 `label-secondary`、推理强度 `label-caption`，**两者都是 13px**。
+供应商作为第三层用 `label-tertiary`、同为 13px，于是整行读作「供应商 · 模型 · 强度」一个视觉单位。
 
 **2. 归属判定只在 Host 侧做一次**
 
