@@ -208,6 +208,24 @@ node -p "require('./node_modules/<pkg>/package.json').version"
 node -e "import('<pkg>').then(m => console.log(Object.keys(m)))"
 ```
 
+### 4.5 发版清单
+
+按顺序执行，每步都有对应检查：
+
+1. `npm run check` 全绿（CI 会在推送后再验一遍）
+2. 更新 `package.json` 的 `version`（`npm version patch --no-git-tag-version`）
+3. 同步文档：**npm 页面上的 README 是打包时的快照**，`docs/` 按 `files` 不随包发布；
+   若 README 或包元信息在此版本后有变动，本次发版会一并同步
+4. `npm publish`（2FA 需本人操作，agent 无法代办）
+5. 按 4.3 复核最终态，按 4.4 端到端验证
+6. `git tag vX.Y.Z && git push origin vX.Y.Z`
+7. `gh release create vX.Y.Z --generate-notes`（或手写要点，首版建议手写）
+
+**为什么要单独写第 3 步**：`dsh-provider-show@0.1.0` 发布后，仓库里的 README 又改过
+（补了 npm 安装说明、精简了结构），而 npm 页面仍显示 0.1.0 打包时的版本。
+这类漂移不影响功能，但会让人以为安装方式没更新。惯例是**不为纯文档改动单独发版**，
+攒到下次有实质改动时一起同步。
+
 ---
 
 ## 五、可复用的项目骨架
