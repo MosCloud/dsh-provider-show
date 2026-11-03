@@ -40,12 +40,22 @@ DSH 的模型选择器（composer 模型位）自带两项信息：
 ## 安装
 
 ```bash
+dsh plugin --profile <你的-profile> add dsh-provider-show
+```
+
+也可以在插件管理页的「添加插件」里填 `dsh-provider-show`，或填 GitHub 仓库地址。
+安装后**刷新页面**（客户端模块是新增的，必须刷新才会加载）。
+
+从源码开发时可改用本地目录，改动即时生效：
+
+```bash
 dsh plugin --profile <你的-profile> add /path/to/dsh-provider-show
 ```
 
-或在插件管理页安装该本地目录。安装后**刷新页面**。
+卸载通过插件管理页，或从 profile 的插件清单移除。
 
-卸载同样通过插件管理页，或从 profile 的插件清单移除。
+> 首次发布时 npm 12 会留下一个 `0.0.0-stage` 占位版本（339 字节），这是它的暂存发布机制产物，
+> `latest` 指向真正的 `0.1.0`，安装不受影响。
 
 ## 判定规则
 
