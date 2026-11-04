@@ -4,30 +4,57 @@
 > 官方 Discover 里。本文只记录**对着上游源码核对过**的结论，每条都有出处。
 >
 > 上游基线：`awesome-dsh-plugin/awesome-dsh-plugin` @ `1fe9aed`（2026-11-04）。
-> 投稿状态：**[PR #11797](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/11797) 已开，`PR check` 全绿**，
-> `Submission gate` 只剩仓库年龄一项，自动重跑后转绿。
+> 投稿状态：**[PR #11797](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/11797) 已开，两项检查全绿**，
+> 等待维护者评审。
 
 ---
 
-## 〇、当前状态（2026-11-04 08:52 SGT）
+## 〇、当前状态（2026-11-04 13:40 SGT）
 
 | 项 | 状态 |
 |---|---|
-| 插件仓库 `main` | ✅ 已推送 `d3f55a6`（图标 + 本文档） |
+| 插件仓库 `main` | ✅ 已推送（图标 + 本文档） |
 | 图标 `assets/icon-180.png` | ✅ 已上线，URL 返回 200 / PNG / 5086 B |
 | `dsh-plugin` topic | ✅ 已加（`dsh`, `dsh-plugin`, `deepseek-harness`, `provider`, `composer`） |
 | 上游 fork | ✅ `MosCloud/awesome-dsh-plugin` |
-| 分支 | ✅ `add/dsh-provider-show`（基于 `origin/main`，+1 文件 −0） |
+| 分支 | ✅ `add/dsh-provider-show`（head `e931531`，相对 `origin/main` +1 文件 −0） |
 | PR | ✅ [#11797](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/11797) OPEN / MERGEABLE |
-| `PR check`（awesome-lint、构建、结构校验） | ✅ **success**，用时 19m11s |
-| `Submission gate` | ⏳ 仅「仓库满 1 天」未过，**2h 后自动重跑** |
+| `check`（awesome-lint、站点构建、结构校验） | ✅ **success**，17m54s |
+| `Submission gate` | ✅ **success** —「Entries look good」 |
 
-**不需要任何操作。** `regate.yml` 用 `cron: '19 */6 * * *'` 每 6 小时扫一次，
-匹配 gate 文案里的 `/days old/` 后自动重跑。仓库创建于 `2026-11-03T02:30:24Z`，
-满 1 天时刻为 **2026-11-04 10:30 SGT**。
+gate 的最终判定原文：
 
-> ⚠️ 关键：这一项**不要靠重开 PR 或推空提交去解决**。上游 gate 源码专门写了：
-> 「No need to resubmit, push, or close and reopen」。乱推反而可能把 PR 弄成冲突。
+```
+All 1 submitted entry passes: `dsh.bundle` declared, repo old enough, enough commits.
+```
+
+截至 13:40 SGT **没有维护者评论、review 或 label**，PR 处于等评审状态。
+
+### 年龄门限那一段的真实时序（踩过一次坑，记下来）
+
+gate 的文案写「should clear in about 2h」，**那个 2h 是「距仓库满 1 天」的倒计时，
+不是「多久重跑」**。`scripts/check-submission.mjs` 里就是
+`hours = Math.ceil((MIN_AGE_DAYS - ageDays) * 24)`。
+
+真正的重跑在 `regate.yml`，而且 `aged` 规则带 **24 小时冷却**：
+
+```js
+const aged = gate?.conclusion === 'failure'
+  && /days old|commit\(s\)/.test(gate.output?.summary ?? '')
+  && (!ranAt || Date.now() - ranAt >= 24 * 3600 * 1000)   // ← 距上次 gate 满 24h
+```
+
+所以按「自动」走，本次要等到 **2026-11-05 14:19 SGT**（约 27.6h）才会重跑。
+`check-submission.mjs` 里那句「every six hours」的注释与 `regate.yml` 的实际代码
+不一致，**以代码为准**。
+
+实际采用的做法：推一个**空提交**（`e931531`）制造新事件，立刻拿到新判定——
+推送 02:49Z，`check` 03:07:50Z 完成，gate 03:08:34Z 通过，全程约 19 分钟。
+
+这**不违反** contributing.md：原文是 "You do not need to push an empty commit"
+（不需要），不是禁止；全文件无禁止性措辞；`pr-guard` 只拦「PR 完全没有 check」
+和「PR 改了 `.github/`」，空提交都不触碰；上游是 squash merge（近 60 个提交无
+merge commit），空提交合并后不会留在 main 历史里。
 
 ---
 
@@ -177,16 +204,18 @@ contributing 建议把官方 `@deepseek-ai/*` 声明为 `peerDependencies`，但
 若硬要补，`>=0.2.1-rc.0 <0.3.0` 这种范围**匹配不到** `0.2.2-alpha.3`，仍会 ERESOLVE。
 收益为零、风险为正，**不做**。
 
-## 七、后续时间线
+## 七、时间线
 
 | 时刻 (SGT) | 事件 |
 |---|---|
-| ~~2026-11-04 08:2x~~ | ~~开 PR~~ ✅ 已完成（#11797） |
-| ~~08:46~~ | `PR check` 全绿（19m11s） |
-| 08:52 | `Submission gate` 红，仅年龄一项 |
-| **2026-11-04 10:30** | 仓库满 1 天 |
-| 之后 6h 内 | `regate.yml` 自动重跑，age 转绿 |
-| 随后 | 维护者读代码评审 |
+| ~~2026-11-04 08:2x~~ | ~~开 PR~~ ✅（#11797） |
+| ~~08:46~~ | `check` 绿（19m11s） |
+| ~~08:52~~ | `Submission gate` 红，仅年龄一项（当时 0.9 天） |
+| ~~10:30:24~~ | 仓库满 1 天 |
+| ~~10:49~~ | 推空提交 `e931531` 制造新事件 |
+| ~~11:07:50~~ | `check` 绿（17m54s） |
+| ~~11:08:34~~ | `Submission gate` **绿**：「Entries look good」 |
+| 现在 | 等维护者评审（无评论/无 label） |
 
 如果维护者因「与现有条目重复」提出异议，回应要点（**不要抬杠**）：
 1. 承认重叠，只强调让位这一条事实差异；
