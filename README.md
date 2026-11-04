@@ -120,6 +120,7 @@ npm run check   # 语法检查 + 静态校验 + 全部测试
 | [docs/lessons.md](docs/lessons.md) | 开发经验与踩坑记录——插槽生命周期、验证方法论、发布流程。做同类插件前先读 |
 | [docs/design.md](docs/design.md) | 架构决策（ADR）、边界约束、验收标准、渲染与排版细节、返工留档 |
 | [docs/research.md](docs/research.md) | 技术考据：槽位拓扑、归属判定信号、排版实测数据，均带源码文件与行号 |
+| [docs/market.md](docs/market.md) | 收录进 awesome-dsh-plugin / 插件市场的路径：条目格式、门槛现状、撞车分析、执行清单 |
 
 ## 许可
 
