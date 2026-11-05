@@ -5,10 +5,15 @@
 在 DSH 输入框右下角的「模型 · 推理强度」前面，补上**当前模型所属的供应商**。
 已被其他插件接管的供应商（例如 WorkBuddy）保持原样，不重复显示。
 
-```
-未接管（火山方舟）      火山方舟   DeepSeek V4.1 Flash · Default      ← 新增「火山方舟」
-已接管（WorkBuddy）                DeepSeek-V4.1-Flash · x0.11 …       ← 本插件不出现
-```
+![供应商芯片：在模型座位左侧补上「DeepSeek Account」](assets/1.png)
+
+上面这一行里，`DeepSeek Account` 是官方路由，没有别的插件认领它，所以由本插件补上；
+模型名与推理强度「DeepSeek-V4.1-Flash High」仍是宿主自己画的，本插件不重复。
+
+下面这一行里，`WB CN` 是 WorkBuddy 连接器自己的供应商芯片，本插件识别到该供应商已被接管，
+于是**不出现**——整行与没装本插件时完全一致：
+
+![让位：WorkBuddy 已画 WB CN，本插件不重复显示](assets/3.png)
 
 ## 安装
 
